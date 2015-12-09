@@ -1,4 +1,5 @@
 # sd-rabbitmqooz
+<<<<<<< HEAD
 
 ## Introduction
 
@@ -79,3 +80,6 @@ TODO: Write history
 
 
 
+=======
+A comprehensive server density plugin for RabbitM (v1)
+>>>>>>> 530c7dc616452348dea5a017f4e12415b7c990f2
