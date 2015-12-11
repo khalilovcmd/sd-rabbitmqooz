@@ -8,7 +8,7 @@ A comprehensive server density plugin for RabbitMQ. It's still a work in progres
 
 ### **Metrics**
 
-**publish**: Count of messages published.
+**publish**: Count of messages published.  
 **publish_rate**:  How much the count has changed per second in the most recent sampling interval.
 
 **delivered_messages**  
