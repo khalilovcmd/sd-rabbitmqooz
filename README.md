@@ -31,9 +31,9 @@ Count of messages delivered in no-acknowledgement mode in response to basic.get.
 **all_delivered_rate**  
 Sum of all four of deliver + deliver_noack + get + get_noack
 
-**total_messages_in_queues**:  Total number of messages in all queues.
-**total_messages_ready_in_queues** : Total number of messages in all queues with acknowledge-mode
-**total_messages_noAck_in_queues**: Total number of messages in all queues with no-acknowledge-mode
+**total_messages_in_queues**:  Total number of messages in all queues.  
+**total_messages_ready_in_queues** : Total number of messages in all queues with acknowledge-mode  
+**total_messages_noAck_in_queues**: Total number of messages in all queues with no-acknowledge-mode  
 
 
 ----------
