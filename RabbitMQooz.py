@@ -8,6 +8,9 @@ import platform
 import sys
 import time
 
+
+
+
 class RabbitMQooz(object):
 
     def __init__(self, agent_config, checks_logger, raw_config):
@@ -15,12 +18,12 @@ class RabbitMQooz(object):
         self.checks_logger = checks_logger
         self.raw_config = raw_config
         self.version = platform.python_version_tuple()
-        
+
+        self.api_queues = '/api/queues'        
         self.api_overview = '/api/overview'
-        self.api_queues = '/api/queues'
-        self.api_aliveness  = '/api/aliveness-test'
         self.api_connections = '/api/connections'
-        
+        self.api_aliveness  = '/api/aliveness-test'
+
         self.host = self.raw_config['RabbitMQooz'].get('host', 'localhost').strip('/')
         self.port = self.raw_config['RabbitMQooz'].get('port', '55672')
         self.username = self.raw_config['RabbitMQooz'].get('username', '')
@@ -28,31 +31,60 @@ class RabbitMQooz(object):
         
      # make a base64 of the username and password combination (for HTTP basic authentication)
     def make_base64(self):
-        base64string = base64.encodestring('%s:%s' % (self.username, self.password))[:-1]
-        return base64string
+        return base64.encodestring('%s:%s' % (self.username, self.password))
+        
+    # make basic authentication string 
+    def make_basic_authentication(self, auth):
+        return ("Authorization", "Basic %s" % auth)
         
     # make http request and add base64 authentication header    
-    def make_http_request(self, resource, auth, parameters, headers):
-         # create http request
-        request = urllib2.Request(self.host + ':' + self.port + resource)
+    def make_http_request(self, resource, parameters, headers):
         
-        # add basic authorization header
-        request.add_header("Authorization", "Basic %s" % auth)
+        # create http request
+        request = urllib2.Request(self.host + ':' + self.port + resource) 
+        
+        if parameters and len(parameters) > 0:
+            pass
+        
+        # adding headers
+        if headers and len(headers) > 0:
+            for (key, value) in headers:
+                request.add_header(key, value)
         
         # make request
         return urllib2.urlopen(request)
+        
+    # fetch metrics for "api/queues" endpoint   
+    def fetch_queues_metrics(self, data):
+        return None
     
-    def make_overview(self,data):
+    # fetch metrics for "api/connections" endpoint   
+    def fetch_connections_metrics(self, data):
+        return None
+    
+    # fetch metrics for "api/aliveness-test" endpoint    
+    def fetch_aliveness_metrics(self, data):
+        return None
+    
+    # fetch metrics for "api/overview" endpoint
+    def fetch_overview_metrics(self,data):
+        
          # make base64 for auth
-        base64string = self.make_base64()
+        base64_result = self.make_base64()
+        
+        # make basic authentication header
+        auth_result = self.make_basic_authentication(base64_result)
         
         # make http request
-        http = self.make_http_request(base64string)
+        http = self.make_http_request(self.api_overview, None, [auth_result]) 
         
-        # check if http code is 200
+        # http code is 200, read results
         if http.getcode() == 200:
             
+            # read http content
             content = http.read()
+            
+            # parse json
             parsed_json = json.loads(content)
             
             if content:
@@ -120,13 +152,11 @@ class RabbitMQooz(object):
 
     def run(self):
         
-        # data object to return after calling run() function
-        data = {}
+        data = {} # data object to return after calling run() function
         
-       
+        self.fetch_overview_metrics(data)
         
         return data
-
 
 if __name__ == '__main__':
     """Standalone test
@@ -137,7 +167,7 @@ if __name__ == '__main__':
             'host': 'localhost',
             'port': '55672',
             'username' : 'guest',
-            'password': '123456'
+            'password': ''
         }
     }
     
