@@ -9,29 +9,33 @@ import sys
 import time
 
 
-
-
 class RabbitMQooz(object):
 
     def __init__(self, agent_config, checks_logger, raw_config):
+
+        self.raw_config = raw_config
         self.agent_config = agent_config
         self.checks_logger = checks_logger
-        self.raw_config = raw_config
         self.version = platform.python_version_tuple()
 
-        self.api_queues = '/api/queues'        
+        self.api_queues = '/api/queues'
+        self.api_nodes = '/api/nodes'
         self.api_overview = '/api/overview'
+        self.api_connections = '/api/channels'
         self.api_connections = '/api/connections'
-        self.api_aliveness  = '/api/aliveness-test'
+
+        #self.api_vhosts = '/api/vhosts'
 
         self.host = self.raw_config['RabbitMQooz'].get('host', 'localhost').strip('/')
         self.port = self.raw_config['RabbitMQooz'].get('port', '55672')
         self.username = self.raw_config['RabbitMQooz'].get('username', '')
         self.password = self.raw_config['RabbitMQooz'].get('password', '')
+        self.queues = self.raw_config['RabbitMQooz'].get('queues', '')
+        self.nodes = self.raw_config['RabbitMQooz'].get('nodes', '')
         
      # make a base64 of the username and password combination (for HTTP basic authentication)
     def make_base64(self):
-        return base64.encodestring('%s:%s' % (self.username, self.password))
+        return base64.encodestring('%s:%s' % (self.username, self.password))[:-1]
         
     # make basic authentication string 
     def make_basic_authentication(self, auth):
@@ -53,15 +57,100 @@ class RabbitMQooz(object):
         
         # make request
         return urllib2.urlopen(request)
+
+    def convert_from_bytes_to_megabytes(self, bytes):
+        return bytes / 1024 / 1024
+
+    # fetch metrics for "api/connections" endpoint
+    def fetch_connections_metrics(self, data):
+        pass
+
+    # fetch metrics for "api/connections" endpoint
+    def fetch_channels_metrics(self, data):
+        pass
         
     # fetch metrics for "api/queues" endpoint   
     def fetch_queues_metrics(self, data):
-        return None
-    
-    # fetch metrics for "api/connections" endpoint   
-    def fetch_connections_metrics(self, data):
-        return None
-    
+
+        if self.queues:
+
+            queues = self.queues.split(',')
+
+             # make base64 for auth
+            base64_result = self.make_base64()
+
+            # make basic authentication header
+            auth_result = self.make_basic_authentication(base64_result)
+
+            # make http request
+            http = self.make_http_request(self.api_queues, None, [auth_result])
+
+            # http code is 200, read results
+            if http.getcode() == 200:
+
+                # read http content
+                content = http.read()
+
+                # parse json
+                parsed_json = json.loads(content)
+
+                if content:
+                    for j in parsed_json:
+                        if j['name'].lower() in queues and j['vhost']:
+                            data[j['vhost'] + '.' + j['name'] + '.' + 'memory'] = j['memory']
+                            data[j['vhost'] + '.' + j['name'] + '.' + 'messages_ready'] = j['messages_ready']
+                            data[j['vhost'] + '.' + j['name'] + '.' + 'messages_unacknowledged'] = j['messages_unacknowledged']
+                            data[j['vhost'] + '.' + j['name'] + '.' + 'messages'] = j['messages']
+                            data[j['vhost'] + '.' + j['name'] + '.' + 'consumers'] = j['consumers']
+
+                            if 'rate' in j['messages_details']:
+                                data[j['vhost'] + '.' + j['name'] + '.' + 'messages_rate'] = j['messages_details']['rate']
+
+                            if 'rate' in j['messages_ready_details']:
+                                data[j['vhost'] + '.' + j['name'] + '.' + 'messages_ready_rate'] = j['messages_ready_details']['rate']
+
+                            if 'rate' in j['messages_unacknowledged_details']:
+                                data[j['vhost'] + '.' + j['name'] + '.' + 'messages_unacknowledged_rate'] = j['messages_unacknowledged_details']['rate']
+
+    # fetch metrics for "api/nodes" endpoint
+    def fetch_nodes_metrics(self, data):
+
+        if self.nodes:
+
+            nodes = self.nodes.split(',')
+
+             # make base64 for auth
+            base64_result = self.make_base64()
+
+            # make basic authentication header
+            auth_result = self.make_basic_authentication(base64_result)
+
+            # make http request
+            http = self.make_http_request(self.api_nodes, None, [auth_result])
+
+            # http code is 200, read results
+            if http.getcode() == 200:
+
+                # read http content
+                content = http.read()
+
+                # parse json
+                parsed_json = json.loads(content)
+
+                if content:
+                    for j in parsed_json:
+                        if j['name'].lower() in nodes:
+                            data[j['name'] + '.' + 'memory_used_megabyte'] = self.convert_from_bytes_to_megabytes(j['mem_used'])
+                            data[j['name'] + '.' + 'memory_free_megabyte'] = self.convert_from_bytes_to_megabytes(j['mem_limit'])
+                            data[j['name'] + '.' + 'disk_free_megabyte'] = self.convert_from_bytes_to_megabytes(j['disk_free'])
+                            data[j['name'] + '.' + 'processes_used'] = j['proc_used']
+                            data[j['name'] + '.' + 'processes_remaining'] = j['proc_total'] - j['proc_used']
+                            data[j['name'] + '.' + 'file_descriptors_used'] = j['fd_used']
+                            data[j['name'] + '.' + 'file_descriptors_remaining'] = j['fd_total'] - j['fd_used']
+                            data[j['name'] + '.' + 'sockets_used'] = j['sockets_used']
+                            data[j['name'] + '.' + 'sockets_remaining'] = j['sockets_total'] - j['sockets_used']
+                            data[j['name'] + '.' + 'running'] = 1 if j['running'] else 0
+
     # fetch metrics for "api/aliveness-test" endpoint    
     def fetch_aliveness_metrics(self, data):
         return None
@@ -136,7 +225,7 @@ class RabbitMQooz(object):
                     data['all_delivered'] = 0
                     data['all_delivered_rate'] = 0      
                 
-                if 'queue_totals' in parsed_json['message_stats']: 
+                if parsed_json['queue_totals']: 
                     # queue messages
                     data['total_messages_in_queues'] = parsed_json['queue_totals']['messages']
                     # queue message with acknowledge-mode
@@ -155,6 +244,8 @@ class RabbitMQooz(object):
         data = {} # data object to return after calling run() function
         
         self.fetch_overview_metrics(data)
+        self.fetch_queues_metrics(data)
+        self.fetch_nodes_metrics(data)
         
         return data
 
@@ -167,7 +258,9 @@ if __name__ == '__main__':
             'host': 'localhost',
             'port': '55672',
             'username' : 'guest',
-            'password': ''
+            'password': 'pass',
+            'queues' : 'queue1,queue2',
+            'nodes' : 'node1,node2'
         }
     }
     
@@ -182,4 +275,4 @@ if __name__ == '__main__':
         except:
             main_checks_logger.exception("Unhandled exception")
         finally:
-            time.sleep(5)
+            time.sleep(25)
