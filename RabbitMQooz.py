@@ -60,14 +60,6 @@ class RabbitMQooz(object):
 
     def convert_from_bytes_to_megabytes(self, bytes):
         return bytes / 1024 / 1024
-
-    # fetch metrics for "api/connections" endpoint
-    def fetch_connections_metrics(self, data):
-        pass
-
-    # fetch metrics for "api/connections" endpoint
-    def fetch_channels_metrics(self, data):
-        pass
         
     # fetch metrics for "api/queues" endpoint   
     def fetch_queues_metrics(self, data):
